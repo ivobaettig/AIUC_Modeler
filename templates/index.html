@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Reflection Kanban</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .user-nav {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+            padding: 10px 0;
+        }
+        .user-nav a {
+            margin-left: 15px;
+            padding: 8px 15px;
+            text-decoration: none;
+            color: #333;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .user-nav a:hover {
+            background-color: #e9ecef;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .flash-message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .flash-message.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .flash-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .flash-message.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="user-nav">
+            <a href="{{ url_for('profile') }}">{{ session.get('user_email', 'My Profile') }}</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+        
+        <h1>AI Use Case Reflection</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Add overlay for full-width editing -->
+        <div class="overlay"></div>
+        
+        <!-- Add full-width edit container -->
+        <div class="edit-container">
+            <div class="edit-header">
+                <h3>Edit Activity</h3>
+                <div class="edit-actions">
+                    <button class="save-full-width-card" type="button">Save</button>
+                    <button class="close-edit-btn" type="button"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div class="edit-fields-container">
+                <input type="text" class="edit-activity" placeholder="What did you do? (activity)" required>
+                <textarea class="edit-description" placeholder="Describe if required (description)"></textarea>
+                <textarea class="edit-reflection" placeholder="How could AI support this? (reflexion)"></textarea>
+                <textarea class="edit-solution" placeholder="How AI (not) supported this activity (solution)"></textarea>
+                <div class="checkbox-container">
+                    <input type="checkbox" class="edit-uses-gpt" id="full-width-uses-gpt">
+                    <label for="full-width-uses-gpt">Uses GPT</label>
+                </div>
+            </div>
+        </div>
+        
+        <form action="/add" method="POST" class="form">
+            <div class="form-row">
+                <div class="form-column">
+                    <input type="text" name="activity" placeholder="What did you do? (activity)" required>
+                    <textarea name="description" placeholder="Describe if required (description)"></textarea>
+                </div>
+                <div class="form-column">
+                    <textarea name="reflection" placeholder="How could AI support this? (reflexion)"></textarea>
+                    <textarea name="solution" placeholder="How AI (not) supported this activity (solution)"></textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-column">
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="uses_gpt" name="uses_gpt" value="1">
+                        <label for="uses_gpt">Uses GPT</label>
+                    </div>
+                </div>
+                <div class="form-column">
+                    <!-- Status selection removed as activities now default to "Backlog" -->
+                </div>
+            </div>
+            <button type="submit">Add Activity</button>
+        </form>
+
+        <div class="kanban">
+            {% for status in statuses %}
+            <div class="column" data-status="{{ status }}">
+                <h2>{{ status }}</h2>
+                <div class="drop-zone">
+                {% for entry in activities_by_status[status] %}
+                <div class="entry" draggable="true" data-id="{{ entry.id }}" data-status="{{ entry.status }}">
+                    <div class="entry-header">
+                        <div class="actions">
+                            <button class="toggle-card-btn"><i class="fas fa-chevron-down"></i></button>
+                            <button class="edit-btn"><i class="fas fa-edit"></i></button>
+                            <div class="edit-actions" style="display: none;">
+                                <button class="save-card">Save</button>
+                                <button class="cancel-edit-btn">Cancel</button>
+                            </div>
+                            <form action="/delete/{{ entry.id }}" method="POST" style="display: inline;" class="delete-form">
+                                <button type="button" class="delete-btn confirm-delete-btn"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p class="activity-text"><strong>{{ entry.activity }}</strong></p>
+                        <div class="card-details" style="display: none;">
+                            <p class="timestamp-text"><em>{{ entry.timestamp }}</em></p>
+                            {% if entry.description %}
+                            <p class="description-text"><strong>Description:</strong> {{ entry.description }}</p>
+                            {% endif %}
+                            {% if entry.reflection %}
+                            <p class="reflection-text"><strong>Reflection:</strong> {{ entry.reflection }}</p>
+                            {% endif %}
+                            {% if entry.solution %}
+                            <p class="solution-text"><strong>Solution:</strong> {{ entry.solution }}</p>
+                            {% endif %}
+                            {% if entry.uses_gpt %}
+                            <p class="gpt-indicator"><span class="gpt-badge">GPT</span></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="edit-fields" style="display: none;">
+                        <label for="edit-activity-{{ entry.id }}">Activity</label>
+                        <input type="text" class="edit-activity" id="edit-activity-{{ entry.id }}" value="{{ entry.activity }}">
+                        <label for="edit-description-{{ entry.id }}">Description</label>
+                        <textarea class="edit-description" id="edit-description-{{ entry.id }}" placeholder="Description">{{ entry.description }}</textarea>
+                        <label for="edit-reflection-{{ entry.id }}">Reflection</label>
+                        <textarea class="edit-reflection" id="edit-reflection-{{ entry.id }}" placeholder="How could AI support this?">{{ entry.reflection }}</textarea>
+                        <label for="edit-solution-{{ entry.id }}">Solution</label>
+                        <textarea class="edit-solution" id="edit-solution-{{ entry.id }}" placeholder="How did you use AI for this? (Solution)">{{ entry.solution }}</textarea>
+                        <div class="checkbox-container">
+                            <input type="checkbox" class="edit-uses-gpt" id="edit-uses-gpt-{{ entry.id }}" {% if entry.uses_gpt %}checked{% endif %}>
+                            <label for="edit-uses-gpt-{{ entry.id }}">Uses GPT</label>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get all draggable entries and drop zones
+            const draggables = document.querySelectorAll('.entry');
+            const dropZones = document.querySelectorAll('.drop-zone');
+            
+            let draggedItem = null;
+            
+            // Setup inline editing and toggle functionality
+            setupCardFunctionality();
+            
+            // Add event listeners to draggable items
+            draggables.forEach(item => {
+                item.addEventListener('dragstart', function(e) {
+                    // Don't allow dragging while in edit mode
+                    if (this.classList.contains('editing')) {
+                        e.preventDefault();
+                        return;
+                    }
+                    
+                    draggedItem = this;
+                    setTimeout(() => {
+                        this.classList.add('dragging');
+                    }, 0);
+                });
+                
+                item.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                    draggedItem = null;
+                });
+            });
+            
+            // Add event listeners to drop zones
+            dropZones.forEach(zone => {
+                zone.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                    
+                    // Find the position for the dragged item
+                    const afterElement = getDragAfterElement(this, e.clientY);
+                    if (afterElement == null) {
+                        this.appendChild(draggedItem);
+                    } else {
+                        this.insertBefore(draggedItem, afterElement);
+                    }
+                });
+                
+                zone.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+                
+                zone.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    
+                    if (draggedItem) {
+                        // Get new status from parent column
+                        const newStatus = this.parentElement.getAttribute('data-status');
+                        const activityId = draggedItem.getAttribute('data-id');
+                        const currentStatus = draggedItem.getAttribute('data-status');
+                        
+                        // Only update if status actually changed
+                        if (newStatus !== currentStatus) {
+                            // Update status attribute
+                            draggedItem.setAttribute('data-status', newStatus);
+                            
+                            // Send AJAX request to update status in the database
+                            fetch('/update_status', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    activityId: activityId,
+                                    newStatus: newStatus
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    console.error('Failed to update status:', data.error);
+                                    alert('Failed to update status. Please try again.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('An error occurred. Please try again.');
+                            });
+                        }
+                    }
+                });
+            });
+            
+            // Function to determine where to place the dragged item
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.entry:not(.dragging)')];
+                
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    
+                    // If offset is negative but greater than closest.offset, this element is closer
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+            
+            // Function to setup card functionality (toggling and editing)
+            function setupCardFunctionality() {
+                document.querySelectorAll('.entry').forEach(entry => {
+                    const saveButton = entry.querySelector('.save-card');
+                    const cardContent = entry.querySelector('.card-content');
+                    const activityText = entry.querySelector('.activity-text');
+                    const cardDetails = entry.querySelector('.card-details');
+                    const toggleButton = entry.querySelector('.toggle-card-btn');
+                    const editFields = entry.querySelector('.edit-fields');
+                    const activityInput = entry.querySelector('.edit-activity');
+                    const descriptionInput = entry.querySelector('.edit-description');
+                    const reflectionInput = entry.querySelector('.edit-reflection');
+                    const solutionInput = entry.querySelector('.edit-solution');
+                    const usesGptCheckbox = entry.querySelector('.edit-uses-gpt');
+                    const deleteButton = entry.querySelector('.delete-btn');
+                    const editButton = entry.querySelector('.edit-btn');
+                    const cancelButton = entry.querySelector('.cancel-edit-btn');
+                    const editActions = entry.querySelector('.edit-actions');
+                    
+                    // Store original values to restore when canceling edits
+                    let originalValues = {
+                        activity: activityInput.value,
+                        description: descriptionInput.value,
+                        reflection: reflectionInput.value,
+                        solution: solutionInput.value,
+                        usesGpt: usesGptCheckbox.checked
+                    };
+                    
+                    // Make the card content clickable
+                    cardContent.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        
+                        // Get current state of card details
+                        const computedStyle = window.getComputedStyle(cardDetails);
+                        const isExpanded = computedStyle.display !== 'none';
+                        
+                        if (!isExpanded) {
+                            // If it's collapsed, expand it
+                            expandCard();
+                        } else {
+                            // If it's already expanded, enter edit mode
+                            toggleEditMode(true);
+                        }
+                    });
+                    
+                    // Keep the toggle button functionality
+                    toggleButton.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        
+                        // Toggle the card details
+                        const computedStyle = window.getComputedStyle(cardDetails);
+                        const isExpanded = computedStyle.display !== 'none';
+                        
+                        if (isExpanded) {
+                            collapseCard();
+                        } else {
+                            expandCard();
+                        }
+                    });
+                    
+                    function expandCard() {
+                        cardDetails.style.display = 'block';
+                        toggleButton.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                    }
+                    
+                    function collapseCard() {
+                        cardDetails.style.display = 'none';
+                        toggleButton.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    }
+                    
+                    // Reset form fields to original values
+                    function resetFormFields() {
+                        activityInput.value = originalValues.activity;
+                        descriptionInput.value = originalValues.description;
+                        reflectionInput.value = originalValues.reflection;
+                        solutionInput.value = originalValues.solution;
+                        usesGptCheckbox.checked = originalValues.usesGpt;
+                    }
+                    
+                    // Remove the click handler from activity text since the whole card is now clickable
+                    // Keep edit button functionality as an alternative way to edit
+                    editButton.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        // Enter edit mode
+                        toggleEditMode(true);
+                    });
+                    
+                    // Add event listener to cancel button
+                    cancelButton.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        // Reset form fields to original values
+                        resetFormFields();
+                        // Exit edit mode without saving changes
+                        toggleEditMode(false);
+                    });
+                    
+                    // Save button click
+                    saveButton.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        saveChanges();
+                    });
+                    
+                    // Prevent delete button from triggering edit mode
+                    deleteButton.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                    });
+                    
+                    function toggleEditMode(editMode) {
+                        if (editMode) {
+                            // Enable edit mode
+                            entry.classList.add('editing');
+                            entry.setAttribute('draggable', 'false');
+                            
+                            // Hide text, show input fields
+                            cardContent.style.display = 'none';
+                            editFields.style.display = 'block';
+                            
+                            // Hide edit button, show edit actions (Save and Cancel buttons)
+                            editActions.style.display = 'inline-block';
+                            editButton.style.display = 'none';
+                            
+                            // Focus on the activity input
+                            activityInput.focus();
+                        } else {
+                            // Disable edit mode
+                            entry.classList.remove('editing');
+                            entry.setAttribute('draggable', 'true');
+                            
+                            // Show text, hide input fields
+                            cardContent.style.display = 'block';
+                            editFields.style.display = 'none';
+                            
+                            // Show edit button, hide edit actions
+                            editActions.style.display = 'none';
+                            editButton.style.display = 'inline';
+                        }
+                    }
+                    
+                    function saveChanges() {
+                        const activityId = entry.getAttribute('data-id');
+                        const newActivity = activityInput.value;
+                        const newDescription = descriptionInput.value;
+                        const newReflection = reflectionInput.value;
+                        const newSolution = solutionInput.value;
+                        const newUsesGpt = usesGptCheckbox.checked ? 1 : 0;
+                        
+                        // Send update to server
+                        fetch('/update_card', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                activityId: activityId,
+                                activity: newActivity,
+                                description: newDescription,
+                                reflection: newReflection,
+                                solution: newSolution,
+                                uses_gpt: newUsesGpt
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update displayed text
+                                activityText.innerHTML = '<strong>' + newActivity + '</strong>';
+                                
+                                // Update timestamp with the new format
+                                const timestampText = entry.querySelector('.timestamp-text');
+                                if (timestampText && data.timestamp) {
+                                    timestampText.innerHTML = '<em>' + data.timestamp + '</em>';
+                                }
+                                
+                                // Update or create description paragraph
+                                let descriptionText = entry.querySelector('.description-text');
+                                if (newDescription) {
+                                    if (descriptionText) {
+                                        descriptionText.innerHTML = '<strong>Description:</strong> ' + newDescription;
+                                    } else {
+                                        descriptionText = document.createElement('p');
+                                        descriptionText.className = 'description-text';
+                                        descriptionText.innerHTML = '<strong>Description:</strong> ' + newDescription;
+                                        cardDetails.appendChild(descriptionText);
+                                    }
+                                } else if (descriptionText) {
+                                    descriptionText.remove();
+                                }
+                                
+                                // Update or create reflection paragraph
+                                let reflectionText = entry.querySelector('.reflection-text');
+                                if (newReflection) {
+                                    if (reflectionText) {
+                                        reflectionText.innerHTML = '<strong>Reflection:</strong> ' + newReflection;
+                                    } else {
+                                        reflectionText = document.createElement('p');
+                                        reflectionText.className = 'reflection-text';
+                                        reflectionText.innerHTML = '<strong>Reflection:</strong> ' + newReflection;
+                                        cardDetails.appendChild(reflectionText);
+                                    }
+                                } else if (reflectionText) {
+                                    reflectionText.remove();
+                                }
+                                
+                                // Update or create solution paragraph
+                                let solutionText = entry.querySelector('.solution-text');
+                                if (newSolution) {
+                                    if (solutionText) {
+                                        solutionText.innerHTML = '<strong>Solution:</strong> ' + newSolution;
+                                    } else {
+                                        solutionText = document.createElement('p');
+                                        solutionText.className = 'solution-text';
+                                        solutionText.innerHTML = '<strong>Solution:</strong> ' + newSolution;
+                                        cardDetails.appendChild(solutionText);
+                                    }
+                                } else if (solutionText) {
+                                    solutionText.remove();
+                                }
+                                
+                                // Update GPT indicator
+                                let gptIndicator = entry.querySelector('.gpt-indicator');
+                                if (newUsesGpt) {
+                                    if (!gptIndicator) {
+                                        gptIndicator = document.createElement('p');
+                                        gptIndicator.className = 'gpt-indicator';
+                                        gptIndicator.innerHTML = '<span class="gpt-badge">GPT</span>';
+                                        cardDetails.appendChild(gptIndicator);
+                                    }
+                                } else if (gptIndicator) {
+                                    gptIndicator.remove();
+                                }
+                                
+                                // Update the original values after successful save
+                                originalValues = {
+                                    activity: newActivity,
+                                    description: newDescription,
+                                    reflection: newReflection,
+                                    solution: newSolution,
+                                    usesGpt: newUsesGpt === 1
+                                };
+                                
+                                // Exit edit mode
+                                toggleEditMode(false);
+                                
+                                // Ensure card details are visible after editing
+                                cardDetails.style.display = 'block';
+                                toggleButton.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                            } else {
+                                console.error('Failed to update card:', data.error);
+                                alert('Failed to update card. Please try again.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred. Please try again.');
+                        });
+                    }
+                    
+                    // Handle pressing Enter in the activity input to save
+                    activityInput.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            saveChanges();
+                        }
+                    });
+                    
+                    // Handle pressing Esc to cancel editing
+                    [activityInput, descriptionInput, reflectionInput, solutionInput].forEach(input => {
+                        input.addEventListener('keydown', function(e) {
+                            if (e.key === 'Escape') {
+                                toggleEditMode(false);
+                            }
+                        });
+                    });
+                    
+                    // Delete confirmation
+                    deleteButton.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        
+                        if (confirm('Are you sure you want to delete this activity?')) {
+                            // If confirmed, submit the form
+                            this.closest('form').submit();
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

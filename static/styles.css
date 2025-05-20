@@ -1,0 +1,341 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 40px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    position: relative; /* Added for absolute positioning of full-width editor */
+}
+
+h1, h2 {
+    font-family: Arial, sans-serif;
+}
+
+/* Form layout styling */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 30px;
+    padding-right: 20px; /* Added padding to prevent fields from touching right border */
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.form-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.form input[type="text"],
+.form textarea,
+.form select {
+    width: 100%;
+    padding: 10px;
+    font-family: Arial, sans-serif;
+    box-sizing: border-box; /* Ensures padding is included in width calculation */
+}
+
+.form textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 5px 0;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin: 0;
+}
+
+/* Inline editing styles */
+.edit-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.edit-activity {
+    width: 100%;
+    padding: 8px;
+    font-family: Arial, sans-serif;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.edit-reflection,
+.edit-description,
+.edit-solution {
+    width: 100%;
+    padding: 8px;
+    font-family: Arial, sans-serif;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-height: 60px;
+    resize: vertical;
+}
+
+.entry.editing {
+    background-color: #f9f9f9;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+.form button {
+    width: 150px;
+    padding: 10px;
+    background: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 4px;
+}
+
+.kanban {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.column {
+    flex: 1;
+    background: #f9f9f9;
+    border-radius: 6px;
+    padding: 15px;
+    min-height: 300px;
+}
+
+.drop-zone {
+    min-height: 100px;
+}
+
+.entry {
+    background: white;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-left: 4px solid #007BFF;
+    border-radius: 4px;
+    cursor: grab;
+    transition: all 0.2s ease;
+    font-family: Arial, sans-serif; /* Ensure consistent font */
+}
+
+/* All text elements in the activity card should have consistent font */
+.activity-text, .timestamp-text, .description-text, 
+.reflection-text, .solution-text, .gpt-indicator,
+.edit-activity, .edit-description, .edit-reflection, .edit-solution,
+.actions button, .actions a, .form input, .form textarea, .form select,
+.edit-fields label, .edit-container label {
+    font-family: Arial, sans-serif;
+    color: #333; /* Consistent color */
+}
+
+/* Exception for action buttons that need specific colors */
+.save-card, .cancel-edit-btn, .close-edit-btn, .save-full-width-card {
+    color: white !important; /* White text for buttons with colorful backgrounds */
+}
+
+/* Edit action buttons styling */
+.edit-actions-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    justify-content: flex-end;
+}
+
+/* Position the cancel and save buttons at the top */
+.cancel-edit-btn, .save-card {
+    background-color: #6c757d !important;
+    font-weight: bold;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    border: none;
+    cursor: pointer;
+    display: inline !important; /* Ensure buttons are displayed inline */
+    margin-top: 0 !important; /* Remove top margin */
+}
+
+.save-card {
+    background-color: #28a745 !important;
+}
+
+/* All text elements in the activity card should have consistent font */
+.activity-text, .timestamp-text, .description-text, 
+.reflection-text, .solution-text, .gpt-indicator {
+    font-family: Arial, sans-serif;
+    color: #333; /* Consistent color */
+}
+
+.entry:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.entry.dragging {
+    opacity: 0.6;
+    border-style: dashed;
+    cursor: grabbing;
+    transform: scale(0.98);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+}
+
+.drag-over {
+    background-color: rgba(0, 123, 255, 0.05);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85em;
+    margin-bottom: 5px;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+}
+
+.actions a,
+.actions button {
+    background: none;
+    border: none;
+    color: #007BFF;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: Arial, sans-serif;
+    font-size: 1em;
+    padding: 0;
+}
+
+.actions button:hover,
+.actions a:hover {
+    color: #0056b3;
+}
+
+.save-card {
+    color: white !important;
+    background-color: #28a745 !important;
+    font-weight: bold;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+}
+
+.toggle-card-btn {
+    color: #6c757d !important;
+}
+
+.toggle-card-btn:hover {
+    color: #5a6268 !important;
+}
+
+.card-details {
+    padding-top: 8px;
+    margin-top: 8px;
+    border-top: 1px dashed #eee;
+}
+
+.gpt-badge {
+    background-color: #10a37f;
+    color: white;
+    font-size: 0.75em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+/* Full-width editing mode */
+.edit-container {
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    background: white;
+    z-index: 100;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    border-left: 4px solid #007BFF;
+    display: none;
+}
+
+.edit-container.active {
+    display: block;
+}
+
+.edit-container .edit-fields {
+    margin-top: 20px;
+}
+
+.edit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.edit-header h3 {
+    margin: 0;
+    color: #007BFF;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.close-edit-btn {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+/* Make text areas larger in full-width mode */
+.edit-container .edit-description,
+.edit-container .edit-reflection,
+.edit-container .edit-solution {
+    min-height: 80px;
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+    display: none;
+}
+
+.overlay.active {
+    display: block;
+}
+
+.cancel-edit-btn {
+    color: white !important;
+    background-color: #6c757d !important;
+    font-weight: bold;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    margin-top: 10px;
+}

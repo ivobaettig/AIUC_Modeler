@@ -4,9 +4,10 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import re
+import os
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'  # Change this to a random secret key in production
+app.secret_key = os.urandom(24)
 
 def get_db_connection():
     conn = sqlite3.connect('data/activities.db')
